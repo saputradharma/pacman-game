@@ -11,6 +11,10 @@ import {
 import { Direction } from "../entities/Pacman";
 import { Grid, TileCoord } from "../levels/Grid";
 
+const R = LEVEL_CONFIG.TILE_SIZE / 2 - 1;
+const FRIGHTENED_COLOR = 0x2121de;
+const WAVE_SPEED = 4;
+
 export class Ghost {
   tileX: number;
   tileY: number;
@@ -20,12 +24,13 @@ export class Ghost {
   mode: GhostMode;
   ghostType: GhostType;
   speed: number;
-  graphic: Phaser.GameObjects.Arc;
+  graphic: Phaser.GameObjects.Graphics;
 
   private grid: Grid;
   private _wasAtCenter = false;
   private startTileX: number;
   private startTileY: number;
+  private wavePhase: number = 0;
 
   constructor(_scene: Phaser.Scene, grid: Grid, tileX: number, tileY: number, ghostType: GhostType) {
     this.grid = grid;
@@ -39,13 +44,9 @@ export class Ghost {
     this.speed = LEVEL_CONFIG.GHOST_SPEED;
     this.mode = GhostMode.IN_HOUSE;
     this.ghostType = ghostType;
-    const color = GHOST_COLORS[ghostType];
-    this.graphic = _scene.add.circle(
-      this.pixelX,
-      this.pixelY,
-      LEVEL_CONFIG.TILE_SIZE / 2,
-      color,
-    );
+    this.graphic = _scene.add.graphics();
+    this.graphic.setPosition(this.pixelX, this.pixelY);
+    this.drawGhost(0);
   }
 
   reset(): void {
@@ -57,7 +58,9 @@ export class Ghost {
     this.direction = Direction.NONE;
     this.mode = GhostMode.IN_HOUSE;
     this._wasAtCenter = false;
+    this.wavePhase = 0;
     this.graphic.setPosition(this.pixelX, this.pixelY);
+    this.drawGhost(0);
   }
 
   setMode(mode: GhostMode): void {
@@ -133,6 +136,7 @@ export class Ghost {
   update(_time: number, delta: number, pacmanTile?: TileCoord, pacmanDirection?: Direction, blinkyTile?: TileCoord): void {
     if (delta <= 0 || !isFinite(delta)) {
       this.graphic.setPosition(this.pixelX, this.pixelY);
+      this.drawGhost(this.wavePhase);
       return;
     }
     if (this.direction === Direction.NONE) {
@@ -141,6 +145,7 @@ export class Ghost {
       }
       if (this.direction === Direction.NONE) {
         this.graphic.setPosition(this.pixelX, this.pixelY);
+        this.drawGhost(this.wavePhase);
         return;
       }
     }
@@ -162,6 +167,7 @@ export class Ghost {
       const ahead = this.nextTileInDirection(this.direction);
       if (this.grid.isWall(ahead.x, ahead.y)) {
         this.graphic.setPosition(this.pixelX, this.pixelY);
+        this.drawGhost(this.wavePhase);
         return;
       }
     } else {
@@ -214,7 +220,87 @@ export class Ghost {
       this.tileY = nextTile.y;
     }
 
+    this.wavePhase += delta * WAVE_SPEED * 0.001;
     this.graphic.setPosition(this.pixelX, this.pixelY);
+    this.drawGhost(this.wavePhase);
+  }
+
+  private drawGhost(phase: number): void {
+    const g = this.graphic;
+    g.clear();
+
+    const waveOffset = Math.sin(phase) * 1.5;
+
+    if (this.mode === GhostMode.EATEN) {
+      this.drawEyes(g);
+      return;
+    }
+
+    if (this.mode === GhostMode.FRIGHTENED) {
+      this.drawFrightenedBody(g, waveOffset);
+      return;
+    }
+
+    this.drawNormalBody(g, waveOffset);
+    this.drawEyes(g);
+  }
+
+  private drawNormalBody(g: Phaser.GameObjects.Graphics, waveOffset: number): void {
+    const color = GHOST_COLORS[this.ghostType];
+    g.fillStyle(color);
+
+    const bodyBottom = R + 1 + waveOffset;
+    const bumpR = R / 3;
+    const bumpSpacing = R * 0.65;
+
+    g.fillCircle(0, -1, R);
+    g.fillRect(-R, -1, R * 2, bodyBottom + bumpR);
+
+    g.fillCircle(bumpSpacing, bodyBottom, bumpR);
+    g.fillCircle(0, bodyBottom, bumpR);
+    g.fillCircle(-bumpSpacing, bodyBottom, bumpR);
+  }
+
+  private drawFrightenedBody(g: Phaser.GameObjects.Graphics, waveOffset: number): void {
+    g.fillStyle(FRIGHTENED_COLOR);
+
+    const bodyBottom = R + 1 + waveOffset;
+    const bumpR = R / 3;
+    const bumpSpacing = R * 0.65;
+
+    g.fillCircle(0, -1, R);
+    g.fillRect(-R, -1, R * 2, bodyBottom + bumpR);
+
+    g.fillCircle(bumpSpacing, bodyBottom, bumpR);
+    g.fillCircle(0, bodyBottom, bumpR);
+    g.fillCircle(-bumpSpacing, bodyBottom, bumpR);
+
+    g.fillStyle(0xffffff);
+    g.fillCircle(-3, -1, 2);
+    g.fillCircle(3, -1, 2);
+
+    g.fillStyle(0x000000);
+    g.fillCircle(-3, -1, 1);
+    g.fillCircle(3, -1, 1);
+
+    g.lineStyle(1, 0xffffff);
+    g.beginPath();
+    g.moveTo(-4, 3);
+    g.lineTo(-2, 1);
+    g.lineTo(0, 3);
+    g.lineTo(2, 1);
+    g.lineTo(4, 3);
+    g.strokePath();
+  }
+
+  private drawEyes(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0xffffff);
+    g.fillCircle(-3, -1, 2.5);
+    g.fillCircle(3, -1, 2.5);
+
+    g.fillStyle(0x0000ff);
+    g.fillCircle(-2, -1, 1.2);
+    g.fillCircle(4, -1, 1.2);
   }
 
   private getChaseTarget(pacmanTile: TileCoord, pacmanDirection: Direction, blinkyTile?: TileCoord): TileCoord {

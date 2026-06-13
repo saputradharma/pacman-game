@@ -11,7 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "phaser": "^3.90.0"
+    "phaser": "^4.1.0"
   },
   "optionalDependencies": {
     "canvas": "^3.2.3"

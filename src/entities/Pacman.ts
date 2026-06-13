@@ -15,6 +15,17 @@ export enum Direction {
   DOWN = "DOWN",
 }
 
+const R = LEVEL_CONFIG.TILE_SIZE / 2 - 1;
+const MAX_MOUTH = 0.35;
+const MOUTH_SPEED = 6;
+
+const DIR_ANGLES: Record<string, number> = {
+  LEFT: Math.PI,
+  RIGHT: 0,
+  UP: -Math.PI / 2,
+  DOWN: Math.PI / 2,
+};
+
 export class Pacman {
   tileX: number;
   tileY: number;
@@ -23,12 +34,13 @@ export class Pacman {
   direction: Direction = Direction.NONE;
   nextDirection: Direction = Direction.NONE;
   speed: number;
-  graphic: Phaser.GameObjects.Arc;
+  graphic: Phaser.GameObjects.Graphics;
 
   private scene: Phaser.Scene;
   private grid: Grid;
   private startTileX: number;
   private startTileY: number;
+  private mouthPhase: number = 0;
 
   constructor(scene: Phaser.Scene, grid: Grid, tileX: number, tileY: number) {
     this.scene = scene;
@@ -41,12 +53,9 @@ export class Pacman {
     this.pixelX = center.x;
     this.pixelY = center.y;
     this.speed = LEVEL_CONFIG.PLAYER_SPEED;
-    this.graphic = scene.add.circle(
-      this.pixelX,
-      this.pixelY,
-      LEVEL_CONFIG.TILE_SIZE / 2,
-      0xffff00,
-    );
+    this.graphic = scene.add.graphics();
+    this.graphic.setPosition(this.pixelX, this.pixelY);
+    this.drawPacman(Direction.NONE, 0);
   }
 
   reset(): void {
@@ -58,11 +67,12 @@ export class Pacman {
     this.direction = Direction.NONE;
     this.nextDirection = Direction.NONE;
     this._wasAtCenter = false;
+    this.mouthPhase = 0;
     this.graphic.setPosition(this.pixelX, this.pixelY);
+    this.drawPacman(Direction.NONE, 0);
   }
 
   setNextDirection(dir: Direction): void {
-    // If stopped, apply immediately
     if (this.direction === Direction.NONE) {
       const nextTile = this.nextTileInDirection(dir);
       if (!this.grid.isWall(nextTile.x, nextTile.y)) {
@@ -72,14 +82,12 @@ export class Pacman {
       }
     }
 
-    // Reverse direction — apply immediately
     if (this.isOpposite(dir, this.direction)) {
       this.direction = dir;
       this.nextDirection = Direction.NONE;
       return;
     }
 
-    // Buffer the direction for next intersection
     this.nextDirection = dir;
   }
 
@@ -88,13 +96,12 @@ export class Pacman {
   update(_time: number, delta: number): void {
     if (delta <= 0 || !isFinite(delta)) {
       this.graphic.setPosition(this.pixelX, this.pixelY);
+      this.drawPacman(this.direction, this.mouthPhase);
       return;
     }
 
-    // Consume pellet at current tile (handles starting tile + in-place)
     this.consumePellet();
 
-    // If direction is NONE, try to start moving
     if (this.direction === Direction.NONE) {
       if (this.nextDirection !== Direction.NONE) {
         const nextTile = this.nextTileInDirection(this.nextDirection);
@@ -105,25 +112,23 @@ export class Pacman {
       }
       if (this.direction === Direction.NONE) {
         this.graphic.setPosition(this.pixelX, this.pixelY);
+        this.drawPacman(this.direction, 0);
         return;
       }
     }
 
-    // Check if at tile center
     const center = this.grid.tileToPixel(this.tileX, this.tileY);
     const dx = this.pixelX - center.x;
     const dy = this.pixelY - center.y;
     const distFromCenter = Math.sqrt(dx * dx + dy * dy);
 
     if (distFromCenter < SNAP_THRESHOLD) {
-      // Snap to exact center (only once per tile to avoid oscillation at >75fps)
       if (!this._wasAtCenter) {
         this.pixelX = center.x;
         this.pixelY = center.y;
         this._wasAtCenter = true;
       }
 
-      // Try buffered turn (runs every frame near center)
       if (this.nextDirection !== Direction.NONE) {
         const nextTile = this.nextTileInDirection(this.nextDirection);
         if (!this.grid.isWall(nextTile.x, nextTile.y)) {
@@ -132,17 +137,16 @@ export class Pacman {
         }
       }
 
-      // Check wall ahead (runs every frame near center)
       const ahead = this.nextTileInDirection(this.direction);
       if (this.grid.isWall(ahead.x, ahead.y)) {
         this.graphic.setPosition(this.pixelX, this.pixelY);
+        this.drawPacman(this.direction, this.mouthPhase);
         return;
       }
     } else {
       this._wasAtCenter = false;
     }
 
-    // Move toward next tile
     const step = this.speed * (delta / 1000);
     switch (this.direction) {
       case Direction.LEFT:
@@ -159,7 +163,6 @@ export class Pacman {
         break;
     }
 
-    // Check if passed the next tile center
     const nextTile = this.nextTileInDirection(this.direction);
     const nextCenter = this.grid.tileToPixel(nextTile.x, nextTile.y);
     const distToNext = Math.sqrt(
@@ -190,7 +193,29 @@ export class Pacman {
       this.consumePellet();
     }
 
+    this.mouthPhase += delta * MOUTH_SPEED * 0.001;
     this.graphic.setPosition(this.pixelX, this.pixelY);
+    this.drawPacman(this.direction, this.mouthPhase);
+  }
+
+  private drawPacman(dir: Direction, phase: number): void {
+    const g = this.graphic;
+    g.clear();
+
+    const angle = DIR_ANGLES[dir];
+    if (angle === undefined) {
+      g.fillStyle(0xffff00);
+      g.fillCircle(0, 0, R);
+      return;
+    }
+    const mouth = Math.abs(Math.sin(phase)) * MAX_MOUTH;
+
+    g.fillStyle(0xffff00);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.arc(0, 0, R, angle + mouth, angle - mouth, false);
+    g.closePath();
+    g.fillPath();
   }
 
   private nextTileInDirection(dir: Direction): { x: number; y: number } {

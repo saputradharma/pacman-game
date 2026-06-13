@@ -4,7 +4,7 @@
 A web-based, high-quality 2D Pacman game built using Phaser 3 and TypeScript, bundled with Vite.
 
 ## Technical Stack
-- **Engine:** Phaser 3 (2D Game Engine)
+- **Engine:** Phaser 4 (2D Game Engine)
 - **Language:** TypeScript
 - **Bundler:** Vite
 - **Testing:** Vitest

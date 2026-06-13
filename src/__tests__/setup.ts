@@ -1,5 +1,26 @@
 import { vi } from 'vitest';
 
+function makeMockGraphics(): any {
+  return {
+    clear: vi.fn(),
+    fillStyle: vi.fn(),
+    lineStyle: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    arc: vi.fn(),
+    closePath: vi.fn(),
+    fillPath: vi.fn(),
+    strokePath: vi.fn(),
+    fillCircle: vi.fn(),
+    fillRect: vi.fn(),
+    setPosition: vi.fn(),
+    setVisible: vi.fn(),
+    setDepth: vi.fn(),
+    destroy: vi.fn(),
+  };
+}
+
 vi.mock('phaser', () => {
   class MockScene {
     scene: any;
@@ -19,6 +40,7 @@ vi.mock('phaser', () => {
           setDepth: vi.fn(),
           destroy: vi.fn(),
         }),
+        graphics: vi.fn().mockReturnValue(makeMockGraphics()),
         text: vi.fn().mockReturnValue({
           _text: '',
           get text() { return this._text; },
@@ -53,7 +75,8 @@ vi.mock('phaser', () => {
       Scene: MockScene,
       AUTO: 0,
       CANVAS: 1,
-      HEADLESS: 2,
+      WEBGL: 2,
+      HEADLESS: 3,
       Game: class {
         constructor(_config: any) {}
       },

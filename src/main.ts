@@ -6,10 +6,11 @@ import { GameOverScene } from './scenes/GameOverScene';
 import { LEVEL_CONFIG } from './constants/Constants';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
+  type: Phaser.WEBGL,
   width: LEVEL_CONFIG.GRID_COLS * LEVEL_CONFIG.TILE_SIZE,
   height: LEVEL_CONFIG.GRID_ROWS * LEVEL_CONFIG.TILE_SIZE,
   backgroundColor: '#000000',
+  roundPixels: true,
   scene: [BootScene, MenuScene, GameScene, GameOverScene],
 };
 

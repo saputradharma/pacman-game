@@ -1,5 +1,5 @@
 Tech Stack:
-*   Engine: Phaser 3
+*   Engine: Phaser 4
 *   Language: TypeScript
 *   Bundler/Build Tool: Vite
 *   Testing Framework: Vitest
